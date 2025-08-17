@@ -42,7 +42,7 @@ const LoginForm = ({ onLoginSuccess }) => {
         
         // Call the success callback to update parent component
         if (onLoginSuccess) {
-          onLoginSuccess(data.user);
+          onLoginSuccess(data.user, data.token);
         }
       } else {
         setIsSuccess(false);

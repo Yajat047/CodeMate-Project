@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const SignupForm = () => {
+const SignupForm = ({ onSignupSuccess }) => {
   const [formData, setFormData] = useState({
     fullName: '',
     idNumber: '',
@@ -39,6 +39,11 @@ const SignupForm = () => {
         setIsSuccess(true);
         setMessage(`Welcome, ${data.user.fullName}! Account created successfully as a ${data.user.role}.`);
         setFormData({ fullName: '', idNumber: '', email: '', password: '' });
+        
+        // Call the success callback to auto-login after signup
+        if (onSignupSuccess) {
+          onSignupSuccess(data.user, data.token);
+        }
       } else {
         setIsSuccess(false);
         setMessage(data.message || 'Signup failed');

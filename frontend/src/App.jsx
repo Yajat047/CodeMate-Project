@@ -4,7 +4,6 @@ import LoginForm from './components/LoginForm'
 import StudentDashboard from './components/StudentDashboard'
 import TeacherDashboard from './components/TeacherDashboard'
 import AdminDashboard from './components/AdminDashboard'
-import { checkAuthStatus, getStoredUser, clearAuthData, storeAuthData } from './utils/auth'
 import './App.css'
 
 function App() {
@@ -14,26 +13,23 @@ function App() {
 
   // Check if user is already logged in
   useEffect(() => {
-    initializeAuth()
+    checkAuthStatus()
   }, [])
 
-  const initializeAuth = async () => {
-    // First check if we have stored user data
-    const storedUser = getStoredUser();
-    if (storedUser) {
-      setUser(storedUser);
+  const checkAuthStatus = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`, {
+        credentials: 'include'
+      })
+      const data = await response.json()
+      if (data.success) {
+        setUser(data.user)
+      }
+    } catch (error) {
+      console.error('Auth check error:', error)
+    } finally {
+      setLoading(false)
     }
-
-    // Then verify with server
-    const verifiedUser = await checkAuthStatus();
-    if (verifiedUser) {
-      setUser(verifiedUser);
-    } else if (storedUser) {
-      // If stored user is invalid, clear it
-      setUser(null);
-    }
-    
-    setLoading(false);
   }
 
   const handleLogout = async () => {
@@ -42,19 +38,15 @@ function App() {
         method: 'POST',
         credentials: 'include'
       })
-    } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      // Always clear local state and storage
       setUser(null)
       setActiveTab('login')
-      clearAuthData()
+    } catch (error) {
+      console.error('Logout error:', error)
     }
   }
 
-  const handleLoginSuccess = (userData, token = null) => {
+  const handleLoginSuccess = (userData) => {
     setUser(userData)
-    storeAuthData(userData, token)
   }
 
   if (loading) {
@@ -121,7 +113,7 @@ function App() {
           {activeTab === 'login' ? (
             <LoginForm onLoginSuccess={handleLoginSuccess} />
           ) : (
-            <SignupForm onSignupSuccess={handleLoginSuccess} />
+            <SignupForm />
           )}
         </div>
       </div>

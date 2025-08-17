@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import apiCall from '../utils/api';
 
 const StudentDashboard = ({ user, onLogout }) => {
   const [sessions, setSessions] = useState([]);
@@ -13,9 +14,7 @@ const StudentDashboard = ({ user, onLogout }) => {
 
   const fetchMySessions = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/sessions/my-hosted`, {
-        credentials: 'include'
-      });
+      const response = await apiCall('/api/sessions/my-hosted');
       const data = await response.json();
       if (data.success) {
         setSessions(data.sessions);
@@ -35,12 +34,11 @@ const StudentDashboard = ({ user, onLogout }) => {
     setMessage('');
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/sessions/create`, {
+      const response = await apiCall('/api/sessions/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
         body: JSON.stringify(newSession)
       });
 
@@ -64,9 +62,8 @@ const StudentDashboard = ({ user, onLogout }) => {
     if (!window.confirm('Are you sure you want to end this session?')) return;
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/sessions/${sessionId}/end`, {
-        method: 'PUT',
-        credentials: 'include'
+      const response = await apiCall(`/api/sessions/${sessionId}/end`, {
+        method: 'PUT'
       });
 
       const data = await response.json();

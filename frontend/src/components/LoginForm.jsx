@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { authAPI } from '../utils/api';
 
 const LoginForm = ({ onLoginSuccess }) => {
   const [formData, setFormData] = useState({
@@ -23,16 +24,7 @@ const LoginForm = ({ onLoginSuccess }) => {
     setMessage('');
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Important for cookies
-        body: JSON.stringify(formData)
-      });
-
-      const data = await response.json();
+      const data = await authAPI.login(formData);
 
       if (data.success) {
         setIsSuccess(true);
@@ -60,12 +52,7 @@ const LoginForm = ({ onLoginSuccess }) => {
 
   const handleLogout = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/logout`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-
-      const data = await response.json();
+      const data = await authAPI.logout();
       if (data.success) {
         setUser(null);
         setMessage('Logged out successfully');

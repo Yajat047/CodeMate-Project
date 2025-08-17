@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import apiCall from '../utils/api';
 
 const AdminDashboard = ({ user, onLogout }) => {
   const [students, setStudents] = useState([]);
@@ -15,10 +16,10 @@ const AdminDashboard = ({ user, onLogout }) => {
       
       // Fetch all data in parallel
       const [studentsRes, teachersRes, sessionsRes, statsRes] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/students`, { credentials: 'include' }),
-        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/teachers`, { credentials: 'include' }),
-        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/sessions/all`, { credentials: 'include' }),
-        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/stats`, { credentials: 'include' })
+        apiCall('/api/admin/students'),
+        apiCall('/api/admin/teachers'),
+        apiCall('/api/sessions/all'),
+        apiCall('/api/admin/stats')
       ]);
 
       const [studentsData, teachersData, sessionsData, statsData] = await Promise.all([
@@ -49,12 +50,11 @@ const AdminDashboard = ({ user, onLogout }) => {
     if (!window.confirm(`Are you sure you want to change this user's role to ${newRole}?`)) return;
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/users/${userId}/role`, {
+      const response = await apiCall(`/api/admin/users/${userId}/role`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
         body: JSON.stringify({ newRole })
       });
 
@@ -74,9 +74,8 @@ const AdminDashboard = ({ user, onLogout }) => {
     if (!window.confirm('Are you sure you want to toggle this user\'s status?')) return;
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/users/${userId}/status`, {
-        method: 'PUT',
-        credentials: 'include'
+      const response = await apiCall(`/api/admin/users/${userId}/status`, {
+        method: 'PUT'
       });
 
       const data = await response.json();

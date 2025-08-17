@@ -4,6 +4,7 @@ import LoginForm from './components/LoginForm'
 import StudentDashboard from './components/StudentDashboard'
 import TeacherDashboard from './components/TeacherDashboard'
 import AdminDashboard from './components/AdminDashboard'
+import { authAPI, tokenManager } from './utils/api'
 import './App.css'
 
 function App() {
@@ -18,32 +19,32 @@ function App() {
 
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`, {
-        credentials: 'include'
-      })
-      const data = await response.json()
+      if (!tokenManager.hasToken()) {
+        setLoading(false);
+        return;
+      }
+      
+      const data = await authAPI.getCurrentUser();
       if (data.success) {
-        setUser(data.user)
+        setUser(data.user);
       }
     } catch (error) {
-      console.error('Auth check error:', error)
+      console.error('Auth check error:', error);
+      tokenManager.removeToken();
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleLogout = async () => {
     try {
-      await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/logout`, {
-        method: 'POST',
-        credentials: 'include'
-      })
-      setUser(null)
-      setActiveTab('login')
+      await authAPI.logout();
+      setUser(null);
+      setActiveTab('login');
     } catch (error) {
-      console.error('Logout error:', error)
+      console.error('Logout error:', error);
     }
-  }
+  };
 
   const handleLoginSuccess = (userData) => {
     setUser(userData)

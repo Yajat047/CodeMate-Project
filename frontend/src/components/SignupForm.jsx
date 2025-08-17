@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { authAPI } from '../utils/api';
 
 const SignupForm = () => {
   const [formData, setFormData] = useState({
@@ -24,16 +25,7 @@ const SignupForm = () => {
     setMessage('');
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/signup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Important for cookies
-        body: JSON.stringify(formData)
-      });
-
-      const data = await response.json();
+      const data = await authAPI.signup(formData);
 
       if (data.success) {
         setIsSuccess(true);

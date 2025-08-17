@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import apiCall from '../utils/api';
 
 const TeacherDashboard = ({ user, onLogout }) => {
   const [students, setStudents] = useState([]);
@@ -8,9 +9,7 @@ const TeacherDashboard = ({ user, onLogout }) => {
 
   const fetchStudents = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/students`, {
-        credentials: 'include'
-      });
+      const response = await apiCall('/api/admin/students');
       const data = await response.json();
       if (data.success) {
         setStudents(data.students);
@@ -22,9 +21,7 @@ const TeacherDashboard = ({ user, onLogout }) => {
 
   const fetchAllSessions = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/sessions/all`, {
-        credentials: 'include'
-      });
+      const response = await apiCall('/api/sessions/all');
       const data = await response.json();
       if (data.success) {
         setSessions(data.sessions);

@@ -13,40 +13,10 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// CORS Configuration - handle multiple frontend URLs
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'http://localhost:4173',
-  process.env.FRONTEND_URL,
-  process.env.VERCEL_URL,
-  // Add your actual Vercel deployment URL here
-  'https://your-app-name.vercel.app'
-].filter(Boolean);
-
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    
-    // For development, also allow localhost with any port
-    if (origin && origin.includes('localhost')) {
-      return callback(null, true);
-    }
-    
-    const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-    return callback(new Error(msg), false);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  origin: process.env.FRONTEND_URL,
+  credentials: true
 }));
-
 app.use(cookieParser());
 
 // Routes

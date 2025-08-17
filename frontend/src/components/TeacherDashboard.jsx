@@ -8,7 +8,7 @@ const TeacherDashboard = ({ user, onLogout }) => {
 
   const fetchStudents = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/admin/students', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/students`, {
         credentials: 'include'
       });
       const data = await response.json();
@@ -22,7 +22,7 @@ const TeacherDashboard = ({ user, onLogout }) => {
 
   const fetchAllSessions = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/sessions/all', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/sessions/all`, {
         credentials: 'include'
       });
       const data = await response.json();

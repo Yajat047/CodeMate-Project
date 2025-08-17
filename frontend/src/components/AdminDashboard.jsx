@@ -15,10 +15,10 @@ const AdminDashboard = ({ user, onLogout }) => {
       
       // Fetch all data in parallel
       const [studentsRes, teachersRes, sessionsRes, statsRes] = await Promise.all([
-        fetch('http://localhost:5000/api/admin/students', { credentials: 'include' }),
-        fetch('http://localhost:5000/api/admin/teachers', { credentials: 'include' }),
-        fetch('http://localhost:5000/api/sessions/all', { credentials: 'include' }),
-        fetch('http://localhost:5000/api/admin/stats', { credentials: 'include' })
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/students`, { credentials: 'include' }),
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/teachers`, { credentials: 'include' }),
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/sessions/all`, { credentials: 'include' }),
+        fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/stats`, { credentials: 'include' })
       ]);
 
       const [studentsData, teachersData, sessionsData, statsData] = await Promise.all([
@@ -49,7 +49,7 @@ const AdminDashboard = ({ user, onLogout }) => {
     if (!window.confirm(`Are you sure you want to change this user's role to ${newRole}?`)) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/users/${userId}/role`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/users/${userId}/role`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -74,7 +74,7 @@ const AdminDashboard = ({ user, onLogout }) => {
     if (!window.confirm('Are you sure you want to toggle this user\'s status?')) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/users/${userId}/status`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/users/${userId}/status`, {
         method: 'PUT',
         credentials: 'include'
       });

@@ -13,7 +13,7 @@ const StudentDashboard = ({ user, onLogout }) => {
 
   const fetchMySessions = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/sessions/my-hosted', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/sessions/my-hosted`, {
         credentials: 'include'
       });
       const data = await response.json();
@@ -35,7 +35,7 @@ const StudentDashboard = ({ user, onLogout }) => {
     setMessage('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/sessions/create', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/sessions/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,7 +64,7 @@ const StudentDashboard = ({ user, onLogout }) => {
     if (!window.confirm('Are you sure you want to end this session?')) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/sessions/${sessionId}/end`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/sessions/${sessionId}/end`, {
         method: 'PUT',
         credentials: 'include'
       });

@@ -4,10 +4,22 @@ const User = require('../models/User');
 // Middleware to verify JWT token
 const authMiddleware = async (req, res, next) => {
   try {
-    // Get token from cookie
-    const token = req.cookies.token;
+    // Get token from cookie or Authorization header
+    let token = req.cookies.token;
+    
+    // Fallback to Authorization header if no cookie
+    if (!token && req.headers.authorization) {
+      const authHeader = req.headers.authorization;
+      if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
 
     if (!token) {
+      console.log('No token found in cookies or headers:', {
+        cookies: req.cookies,
+        authHeader: req.headers.authorization
+      });
       return res.status(401).json({
         success: false,
         message: 'Access denied. No token provided.'
@@ -20,6 +32,7 @@ const authMiddleware = async (req, res, next) => {
     // Check if user exists and is active
     const user = await User.findById(decoded.userId);
     if (!user || !user.isActive) {
+      console.log('User not found or inactive:', decoded.userId);
       return res.status(401).json({
         success: false,
         message: 'Invalid token or user not found'
@@ -32,7 +45,7 @@ const authMiddleware = async (req, res, next) => {
     next();
 
   } catch (error) {
-    console.error('Auth middleware error:', error);
+    console.error('Auth middleware error:', error.message);
     return res.status(401).json({
       success: false,
       message: 'Invalid token'

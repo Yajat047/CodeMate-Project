@@ -61,7 +61,7 @@ const sessionSchema = new mongoose.Schema({
   }],
   maxParticipants: {
     type: Number,
-    default: 50
+    default: 100
   }
 }, {
   timestamps: true

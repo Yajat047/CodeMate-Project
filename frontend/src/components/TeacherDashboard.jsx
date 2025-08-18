@@ -13,7 +13,7 @@ const TeacherDashboard = ({ user, onLogout }) => {
   const [newSession, setNewSession] = useState({
     title: '',
     description: '',
-    maxParticipants: 200
+    maxParticipants: 100
   });
 
   const fetchStudents = async () => {
@@ -96,7 +96,7 @@ const TeacherDashboard = ({ user, onLogout }) => {
       const data = await response.json();
       if (data.success) {
         setActiveSession(data.session);
-        setNewSession({ title: '', description: '', maxParticipants: 200 });
+        setNewSession({ title: '', description: '', maxParticipants: 100 });
         setShowCreateForm(false);
         fetchAllSessions();
       } else {

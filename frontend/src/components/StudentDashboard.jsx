@@ -13,7 +13,7 @@ const StudentDashboard = ({ user, onLogout }) => {
   const [newSession, setNewSession] = useState({
     title: '',
     description: '',
-    maxParticipants: 50
+    maxParticipants: 100
   });
 
   const fetchMySessions = async () => {
@@ -62,7 +62,7 @@ const StudentDashboard = ({ user, onLogout }) => {
       const data = await response.json();
       if (data.success) {
         setActiveSession(data.session);
-        setNewSession({ title: '', description: '', maxParticipants: 50 });
+        setNewSession({ title: '', description: '', maxParticipants: 100 });
         setShowCreateForm(false);
       } else {
         setMessage(data.message || 'Failed to create session');

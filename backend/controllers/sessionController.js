@@ -32,7 +32,7 @@ const createSession = async (req, res) => {
       description,
       hostedBy: req.userId,
       sessionCode,
-      maxParticipants: maxParticipants || 50,
+      maxParticipants: maxParticipants || 100,
       participants: [req.userId], // Host automatically joins the session
       activeParticipants: [req.userId],
       participationHistory: [{

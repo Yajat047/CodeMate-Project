@@ -53,8 +53,8 @@ const sessionValidation = [
 
   body('maxParticipants')
     .optional()
-    .isInt({ min: 1, max: 200 })
-    .withMessage('Max participants must be between 1 and 200')
+    .isInt({ min: 1, max: 500 })
+    .withMessage('Max participants must be between 1 and 500')
 ];
 
 module.exports = {

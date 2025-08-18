@@ -15,7 +15,7 @@ const AdminDashboard = ({ user, onLogout }) => {
   const [newSession, setNewSession] = useState({
     title: '',
     description: '',
-    maxParticipants: 500
+    maxParticipants: 100
   });
 
   const fetchData = async () => {
@@ -141,7 +141,7 @@ const AdminDashboard = ({ user, onLogout }) => {
       const data = await response.json();
       if (data.success) {
         setActiveSession(data.session);
-        setNewSession({ title: '', description: '', maxParticipants: 500 });
+        setNewSession({ title: '', description: '', maxParticipants: 100 });
         setShowCreateForm(false);
         fetchData(); // Refresh all data including sessions
       } else {

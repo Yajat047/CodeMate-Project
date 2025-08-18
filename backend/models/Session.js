@@ -8,6 +8,27 @@ const sessionSchema = new mongoose.Schema({
     minlength: [3, 'Session title must be at least 3 characters long'],
     maxlength: [100, 'Session title cannot exceed 100 characters']
   },
+  codeHistory: [{
+    code: String,
+    timestamp: { type: Date, default: Date.now },
+    author: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }
+  }],
+  participationHistory: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    joinedAt: { type: Date, default: Date.now },
+    leftAt: Date,
+    role: String
+  }],
+  activeParticipants: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   description: {
     type: String,
     trim: true,

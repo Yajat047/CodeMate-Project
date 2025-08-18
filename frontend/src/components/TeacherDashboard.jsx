@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import apiCall from '../utils/api';
 import SessionView from './SessionView';
+import { onHandRaised, onHandLowered } from '../utils/socket';
 
 const TeacherDashboard = ({ user, onLogout }) => {
   const [students, setStudents] = useState([]);
@@ -9,6 +10,7 @@ const TeacherDashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('students');
   const [activeSession, setActiveSession] = useState(null);
   const [message, setMessage] = useState('');
+  const [raisedHands, setRaisedHands] = useState({});
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newSession, setNewSession] = useState({
     title: '',
@@ -66,9 +68,49 @@ const TeacherDashboard = ({ user, onLogout }) => {
     fetchAllSessions();
   };
 
+  const fetchRaisedHands = async (sessionId) => {
+    try {
+      const response = await apiCall(`/api/sessions/${sessionId}/raised-hands`);
+      const data = await response.json();
+      if (data.success) {
+        setRaisedHands(prev => ({
+          ...prev,
+          [sessionId]: data.raisedHands.reduce((acc, hand) => {
+            acc[hand.user._id] = hand.raisedAt;
+            return acc;
+          }, {})
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching raised hands:', error);
+    }
+  };
+
   useEffect(() => {
     fetchStudents();
     fetchAllSessions();
+    
+    // Listen for hand raise/lower events
+    onHandRaised(({ userId, timestamp, sessionId }) => {
+      setRaisedHands(prev => ({
+        ...prev,
+        [sessionId]: {
+          ...prev[sessionId],
+          [userId]: timestamp
+        }
+      }));
+    });
+
+    onHandLowered(({ userId, sessionId }) => {
+      setRaisedHands(prev => {
+        const sessionHands = { ...prev[sessionId] };
+        delete sessionHands[userId];
+        return {
+          ...prev,
+          [sessionId]: sessionHands
+        };
+      });
+    });
   }, []);
 
   if (activeSession) {
@@ -369,6 +411,41 @@ const TeacherDashboard = ({ user, onLogout }) => {
                         }}>
                           {session.isActive ? 'Active' : 'Ended'}
                         </span>
+                        {session.isActive && raisedHands[session._id] && Object.keys(raisedHands[session._id]).length > 0 && (
+                          <div style={{ marginTop: '8px' }}>
+                            <span style={{
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: '#fff3cd',
+                              color: '#856404',
+                              fontSize: '12px'
+                            }}>
+                              🖐 {Object.keys(raisedHands[session._id]).length} hands raised
+                            </span>
+                            <details style={{ marginTop: '5px' }}>
+                              <summary style={{ cursor: 'pointer', color: '#007bff', fontSize: '12px' }}>
+                                View Raised Hands
+                              </summary>
+                              <div style={{ marginTop: '5px', fontSize: '12px' }}>
+                                {Object.entries(raisedHands[session._id])
+                                  .sort((a, b) => new Date(a[1]) - new Date(b[1]))
+                                  .map(([userId, timestamp]) => {
+                                    const participant = session.participants.find(p => p._id === userId);
+                                    if (!participant) return null;
+                                    return (
+                                      <div key={userId} style={{ margin: '3px 0', color: '#666' }}>
+                                        • {participant.fullName} ({participant.idNumber})
+                                        <br />
+                                        <small style={{ marginLeft: '12px', color: '#999' }}>
+                                          {new Date(timestamp).toLocaleTimeString()}
+                                        </small>
+                                      </div>
+                                    );
+                                  })}
+                              </div>
+                            </details>
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '12px', border: '1px solid #ddd' }}>
                         {new Date(session.createdAt).toLocaleString()}

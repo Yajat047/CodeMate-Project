@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { socket } from '../utils/socket';
+import { socket, onHandRaised, onHandLowered } from '../utils/socket';
 import apiCall from '../utils/api';
 
 const SessionView = ({ session, user, onLeave }) => {
@@ -7,11 +7,79 @@ const SessionView = ({ session, user, onLeave }) => {
   const [host, setHost] = useState(session.hostedBy);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [handRaised, setHandRaised] = useState(false);
+  const [raisedHands, setRaisedHands] = useState({});
+
+  const handleRaiseHand = async () => {
+    if (loading) return;
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await apiCall(`/api/sessions/${session._id}/raise-hand`, {
+        method: 'POST'
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setHandRaised(true);
+      } else {
+        setError(data.message || 'Failed to raise hand');
+      }
+    } catch (error) {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLowerHand = async () => {
+    if (loading) return;
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await apiCall(`/api/sessions/${session._id}/lower-hand`, {
+        method: 'POST'
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setHandRaised(false);
+      } else {
+        setError(data.message || 'Failed to lower hand');
+      }
+    } catch (error) {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchRaisedHands = async () => {
+    try {
+      const response = await apiCall(`/api/sessions/${session._id}/raised-hands`);
+      const data = await response.json();
+      if (data.success) {
+        const handsMap = data.raisedHands.reduce((acc, hand) => {
+          acc[hand.user._id] = hand.raisedAt;
+          return acc;
+        }, {});
+        setRaisedHands(handsMap);
+        setHandRaised(!!handsMap[user.id]);
+      }
+    } catch (error) {
+      console.error('Error fetching raised hands:', error);
+    }
+  };
 
   useEffect(() => {
     // Connect to socket and join session room
     socket.connect();
     socket.emit('join-session', { sessionId: session._id, userId: user.id });
+
+    // Initial fetch of raised hands
+    fetchRaisedHands();
 
     // Listen for session updates
     socket.on('session-updated', ({ participants, host }) => {
@@ -22,6 +90,28 @@ const SessionView = ({ session, user, onLeave }) => {
     // Listen for session end
     socket.on('session-ended', () => {
       onLeave && onLeave();
+    });
+
+    // Listen for hand raise/lower events
+    onHandRaised(({ userId, timestamp }) => {
+      setRaisedHands(prev => ({
+        ...prev,
+        [userId]: timestamp
+      }));
+      if (userId === user.id) {
+        setHandRaised(true);
+      }
+    });
+
+    onHandLowered(({ userId }) => {
+      setRaisedHands(prev => {
+        const newHands = { ...prev };
+        delete newHands[userId];
+        return newHands;
+      });
+      if (userId === user.id) {
+        setHandRaised(false);
+      }
     });
 
     return () => {
@@ -213,6 +303,66 @@ const SessionView = ({ session, user, onLeave }) => {
               </div>
             </div>
 
+            {/* Raised Hands */}
+            <div style={{ marginBottom: '15px' }}>
+              <strong>Raised Hands:</strong>
+              {Object.keys(raisedHands).length === 0 ? (
+                <p style={{ color: '#666', fontStyle: 'italic', marginTop: '5px' }}>
+                  No hands raised
+                </p>
+              ) : (
+                <div style={{ marginTop: '5px' }}>
+                  {Object.entries(raisedHands)
+                    .sort((a, b) => new Date(a[1]) - new Date(b[1]))
+                    .map(([userId, timestamp]) => {
+                      const participant = participants.find(p => p._id === userId);
+                      if (!participant) return null;
+                      return (
+                        <div
+                          key={userId}
+                          style={{
+                            padding: '8px',
+                            backgroundColor: '#fff3cd',
+                            borderRadius: '4px',
+                            marginBottom: '5px'
+                          }}
+                        >
+                          🖐 {participant.fullName}
+                          <div style={{ 
+                            fontSize: '12px',
+                            color: '#666',
+                            marginTop: '2px'
+                          }}>
+                            Raised at {new Date(timestamp).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+
+            {/* Raise Hand Button for students */}
+            {user.role === 'student' && (
+              <div style={{ marginBottom: '15px' }}>
+                <button
+                  onClick={handRaised ? handleLowerHand : handleRaiseHand}
+                  disabled={loading}
+                  style={{
+                    width: '100%',
+                    padding: '8px 16px',
+                    backgroundColor: handRaised ? '#dc3545' : '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: loading ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {loading ? 'Please wait...' : handRaised ? '🖐 Lower Hand' : '🖐 Raise Hand'}
+                </button>
+              </div>
+            )}
+
             {/* Participants list */}
             <div>
               <strong>Participants:</strong>
@@ -234,6 +384,9 @@ const SessionView = ({ session, user, onLeave }) => {
                     >
                       {participant.fullName}
                       {participant.idNumber && ` (${participant.idNumber})`}
+                      {raisedHands[participant._id] && (
+                        <span style={{ marginLeft: '5px' }}>🖐</span>
+                      )}
                       <div style={{ 
                         fontSize: '12px',
                         color: '#666',

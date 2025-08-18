@@ -1,74 +1,92 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const sessionSchema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: [true, 'Session title is required'],
-    trim: true,
-    minlength: [3, 'Session title must be at least 3 characters long'],
-    maxlength: [100, 'Session title cannot exceed 100 characters']
-  },
-  codeHistory: [{
-    code: String,
-    timestamp: { type: Date, default: Date.now },
-    author: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    }
-  }],
-  participationHistory: [{
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
+const sessionSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: [true, "Session title is required"],
+      trim: true,
+      minlength: [3, "Session title must be at least 3 characters long"],
+      maxlength: [100, "Session title cannot exceed 100 characters"],
     },
-    joinedAt: { type: Date, default: Date.now },
-    leftAt: Date,
-    role: String
-  }],
-  activeParticipants: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }],
-  description: {
-    type: String,
-    trim: true,
-    maxlength: [500, 'Description cannot exceed 500 characters']
+    codeHistory: [
+      {
+        code: String,
+        timestamp: { type: Date, default: Date.now },
+        author: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+      },
+    ],
+    participationHistory: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        joinedAt: { type: Date, default: Date.now },
+        leftAt: Date,
+        role: String,
+      },
+    ],
+    activeParticipants: [
+      {
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        hasRaisedHand: {
+          type: Boolean,
+          default: false,
+        },
+        raisedHandAt: Date,
+      },
+    ],
+    description: {
+      type: String,
+      trim: true,
+      maxlength: [500, "Description cannot exceed 500 characters"],
+    },
+    hostedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    sessionCode: {
+      type: String,
+      unique: true,
+      required: true,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    startTime: {
+      type: Date,
+      default: Date.now,
+    },
+    endTime: {
+      type: Date,
+    },
+    participants: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    maxParticipants: {
+      type: Number,
+      default: 100,
+    },
   },
-  hostedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  sessionCode: {
-    type: String,
-    unique: true,
-    required: true
-  },
-  isActive: {
-    type: Boolean,
-    default: true
-  },
-  startTime: {
-    type: Date,
-    default: Date.now
-  },
-  endTime: {
-    type: Date
-  },
-  participants: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }],
-  maxParticipants: {
-    type: Number,
-    default: 100
+  {
+    timestamps: true,
   }
-}, {
-  timestamps: true
-});
+);
 
 // Generate unique session code before saving
-sessionSchema.pre('save', function(next) {
+sessionSchema.pre("save", function (next) {
   if (!this.sessionCode) {
     this.sessionCode = Math.random().toString(36).substring(2, 8).toUpperCase();
   }
@@ -76,9 +94,9 @@ sessionSchema.pre('save', function(next) {
 });
 
 // Remove sensitive data from JSON output
-sessionSchema.methods.toJSON = function() {
+sessionSchema.methods.toJSON = function () {
   const sessionObject = this.toObject();
   return sessionObject;
 };
 
-module.exports = mongoose.model('Session', sessionSchema);
+module.exports = mongoose.model("Session", sessionSchema);

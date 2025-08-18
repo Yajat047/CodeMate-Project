@@ -1,6 +1,6 @@
-const Session = require('../models/Session');
-const User = require('../models/User');
-const { validationResult } = require('express-validator');
+const Session = require("../models/Session");
+const User = require("../models/User");
+const { validationResult } = require("express-validator");
 
 // Create a new session (student only)
 const createSession = async (req, res) => {
@@ -9,8 +9,8 @@ const createSession = async (req, res) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        message: 'Validation failed',
-        errors: errors.array()
+        message: "Validation failed",
+        errors: errors.array(),
       });
     }
 
@@ -34,29 +34,35 @@ const createSession = async (req, res) => {
       sessionCode,
       maxParticipants: maxParticipants || 100,
       participants: [req.userId], // Host automatically joins the session
-      activeParticipants: [req.userId],
-      participationHistory: [{
-        user: req.userId,
-        joinedAt: new Date(),
-        role: 'host'
-      }]
+      activeParticipants: [
+        {
+          userId: req.userId,
+          hasRaisedHand: false,
+        },
+      ],
+      participationHistory: [
+        {
+          user: req.userId,
+          joinedAt: new Date(),
+          role: "host",
+        },
+      ],
     });
 
     await newSession.save();
-    await newSession.populate('hostedBy', 'fullName idNumber email role');
-    await newSession.populate('participants', 'fullName idNumber email role');
+    await newSession.populate("hostedBy", "fullName idNumber email role");
+    await newSession.populate("participants", "fullName idNumber email role");
 
     res.status(201).json({
       success: true,
-      message: 'Session created successfully',
-      session: newSession
+      message: "Session created successfully",
+      session: newSession,
     });
-
   } catch (error) {
-    console.error('Create session error:', error);
+    console.error("Create session error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: "Internal server error",
     });
   }
 };
@@ -65,20 +71,19 @@ const createSession = async (req, res) => {
 const getAllSessions = async (req, res) => {
   try {
     const sessions = await Session.find()
-      .populate('hostedBy', 'fullName idNumber email role')
-      .populate('participants', 'fullName idNumber email role')
+      .populate("hostedBy", "fullName idNumber email role")
+      .populate("participants", "fullName idNumber email role")
       .sort({ createdAt: -1 });
 
     res.json({
       success: true,
-      sessions
+      sessions,
     });
-
   } catch (error) {
-    console.error('Get all sessions error:', error);
+    console.error("Get all sessions error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: "Internal server error",
     });
   }
 };
@@ -87,20 +92,19 @@ const getAllSessions = async (req, res) => {
 const getMyHostedSessions = async (req, res) => {
   try {
     const sessions = await Session.find({ hostedBy: req.userId })
-      .populate('hostedBy', 'fullName idNumber email role')
-      .populate('participants', 'fullName idNumber email role')
+      .populate("hostedBy", "fullName idNumber email role")
+      .populate("participants", "fullName idNumber email role")
       .sort({ createdAt: -1 });
 
     res.json({
       success: true,
-      sessions
+      sessions,
     });
-
   } catch (error) {
-    console.error('Get my hosted sessions error:', error);
+    console.error("Get my hosted sessions error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: "Internal server error",
     });
   }
 };
@@ -112,15 +116,16 @@ const joinSession = async (req, res) => {
 
     // Check if user is already in an active session
     const activeSession = await Session.findOne({
-      activeParticipants: req.userId,
-      isActive: true
+      "activeParticipants.userId": req.userId,
+      isActive: true,
     });
 
     if (activeSession) {
       return res.status(400).json({
         success: false,
-        message: 'You are already in an active session. Please leave the current session before joining a new one.',
-        activeSessionId: activeSession._id
+        message:
+          "You are already in an active session. Please leave the current session before joining a new one.",
+        activeSessionId: activeSession._id,
       });
     }
 
@@ -128,7 +133,7 @@ const joinSession = async (req, res) => {
     if (!session) {
       return res.status(404).json({
         success: false,
-        message: 'Session not found or inactive'
+        message: "Session not found or inactive",
       });
     }
 
@@ -136,45 +141,51 @@ const joinSession = async (req, res) => {
     if (session.participants.includes(req.userId)) {
       return res.status(400).json({
         success: false,
-        message: 'You are already a participant in this session'
+        message: "You are already a participant in this session",
       });
     }
 
     // Get user role
     const user = await User.findById(req.userId);
-    const isTeacherOrAdmin = ['teacher', 'admin'].includes(user.role);
+    const isTeacherOrAdmin = ["teacher", "admin"].includes(user.role);
 
     // Check if session is full (skip check for teachers and admins)
-    if (!isTeacherOrAdmin && session.participants.length >= session.maxParticipants) {
+    if (
+      !isTeacherOrAdmin &&
+      session.participants.length >= session.maxParticipants
+    ) {
       return res.status(400).json({
         success: false,
-        message: 'Session is full'
+        message: "Session is full",
       });
     }
 
     session.participants.push(req.userId);
+    session.activeParticipants.push({
+      userId: req.userId,
+      hasRaisedHand: false,
+    });
     await session.save();
-    await session.populate('hostedBy', 'fullName idNumber email role');
-    await session.populate('participants', 'fullName idNumber email role');
+    await session.populate("hostedBy", "fullName idNumber email role");
+    await session.populate("participants", "fullName idNumber email role");
 
     // Emit session update event
-    const { io } = require('../server');
-    io.to(session._id.toString()).emit('session-updated', {
+    const { io } = require("../server");
+    io.to(session._id.toString()).emit("session-updated", {
       participants: session.participants,
-      host: session.hostedBy
+      host: session.hostedBy,
     });
 
     res.json({
       success: true,
-      message: 'Successfully joined session',
-      session
+      message: "Successfully joined session",
+      session,
     });
-
   } catch (error) {
-    console.error('Join session error:', error);
+    console.error("Join session error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: "Internal server error",
     });
   }
 };
@@ -188,19 +199,20 @@ const endSession = async (req, res) => {
     if (!session) {
       return res.status(404).json({
         success: false,
-        message: 'Session not found'
+        message: "Session not found",
       });
     }
 
     // Check if user is authorized to end the session
     const user = await User.findById(req.userId);
-    const isTeacherOrAdmin = ['teacher', 'admin'].includes(user.role);
+    const isTeacherOrAdmin = ["teacher", "admin"].includes(user.role);
     const isHost = session.hostedBy.toString() === req.userId;
 
     if (!isHost && !isTeacherOrAdmin) {
       return res.status(403).json({
         success: false,
-        message: 'Only the session host, teachers, or admins can end the session'
+        message:
+          "Only the session host, teachers, or admins can end the session",
       });
     }
 
@@ -210,14 +222,13 @@ const endSession = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Session ended successfully'
+      message: "Session ended successfully",
     });
-
   } catch (error) {
-    console.error('End session error:', error);
+    console.error("End session error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: "Internal server error",
     });
   }
 };
@@ -226,20 +237,19 @@ const endSession = async (req, res) => {
 const getMyJoinedSessions = async (req, res) => {
   try {
     const sessions = await Session.find({ participants: req.userId })
-      .populate('hostedBy', 'fullName idNumber email role')
-      .populate('participants', 'fullName idNumber email role')
+      .populate("hostedBy", "fullName idNumber email role")
+      .populate("participants", "fullName idNumber email role")
       .sort({ createdAt: -1 });
 
     res.json({
       success: true,
-      sessions
+      sessions,
     });
-
   } catch (error) {
-    console.error('Get joined sessions error:', error);
+    console.error("Get joined sessions error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: "Internal server error",
     });
   }
 };
@@ -249,50 +259,52 @@ const saveCodeToHistory = async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { code } = req.body;
-    const { io } = require('../server');
+    const { io } = require("../server");
 
     const session = await Session.findById(sessionId);
     if (!session) {
       return res.status(404).json({
         success: false,
-        message: 'Session not found'
+        message: "Session not found",
       });
     }
 
     // Check if user is a participant or host
-    if (!session.participants.includes(req.userId) && session.hostedBy.toString() !== req.userId) {
+    if (
+      !session.participants.includes(req.userId) &&
+      session.hostedBy.toString() !== req.userId
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'You are not a participant in this session'
+        message: "You are not a participant in this session",
       });
     }
 
     const codeEntry = {
       code,
       author: req.userId,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
     session.codeHistory.push(codeEntry);
     await session.save();
 
     // Emit real-time update to all participants in the session
-    io.to(sessionId).emit('code-updated', {
+    io.to(sessionId).emit("code-updated", {
       code,
       userId: req.userId,
-      timestamp: codeEntry.timestamp
+      timestamp: codeEntry.timestamp,
     });
 
     res.json({
       success: true,
-      message: 'Code saved to session history'
+      message: "Code saved to session history",
     });
-
   } catch (error) {
-    console.error('Save code history error:', error);
+    console.error("Save code history error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: "Internal server error",
     });
   }
 };
@@ -303,38 +315,39 @@ const getSessionHistory = async (req, res) => {
     const { sessionId } = req.params;
 
     const session = await Session.findById(sessionId)
-      .populate('codeHistory.author', 'fullName idNumber email role')
-      .populate('hostedBy', 'fullName idNumber email role')
-      .populate('participants', 'fullName idNumber email role');
+      .populate("codeHistory.author", "fullName idNumber email role")
+      .populate("hostedBy", "fullName idNumber email role")
+      .populate("participants", "fullName idNumber email role");
 
     if (!session) {
       return res.status(404).json({
         success: false,
-        message: 'Session not found'
+        message: "Session not found",
       });
     }
 
     // Check if user is a participant, host, teacher, or admin
     const user = await User.findById(req.userId);
-    if (!session.participants.includes(req.userId) && 
-        session.hostedBy.toString() !== req.userId && 
-        !['teacher', 'admin'].includes(user.role)) {
+    if (
+      !session.participants.includes(req.userId) &&
+      session.hostedBy.toString() !== req.userId &&
+      !["teacher", "admin"].includes(user.role)
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'You do not have permission to view this session history'
+        message: "You do not have permission to view this session history",
       });
     }
 
     res.json({
       success: true,
-      session
+      session,
     });
-
   } catch (error) {
-    console.error('Get session history error:', error);
+    console.error("Get session history error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: "Internal server error",
     });
   }
 };
@@ -348,7 +361,7 @@ const leaveSession = async (req, res) => {
     if (!session) {
       return res.status(404).json({
         success: false,
-        message: 'Session not found'
+        message: "Session not found",
       });
     }
 
@@ -356,7 +369,7 @@ const leaveSession = async (req, res) => {
     if (!session.participants.includes(req.userId)) {
       return res.status(400).json({
         success: false,
-        message: 'You are not a participant in this session'
+        message: "You are not a participant in this session",
       });
     }
 
@@ -364,38 +377,37 @@ const leaveSession = async (req, res) => {
     if (session.hostedBy.toString() === req.userId) {
       return res.status(400).json({
         success: false,
-        message: 'Session host must end the session instead of leaving'
+        message: "Session host must end the session instead of leaving",
       });
     }
 
     // Remove user from active participants
     session.activeParticipants = session.activeParticipants.filter(
-      participant => participant.toString() !== req.userId
+      (participant) => participant.userId.toString() !== req.userId
     );
 
     // Update participation history
     const participationRecord = session.participationHistory.find(
-      record => record.user.toString() === req.userId && !record.leftAt
+      (record) => record.user.toString() === req.userId && !record.leftAt
     );
     if (participationRecord) {
       participationRecord.leftAt = new Date();
     }
 
     await session.save();
-    await session.populate('hostedBy', 'fullName idNumber email role');
-    await session.populate('participants', 'fullName idNumber email role');
+    await session.populate("hostedBy", "fullName idNumber email role");
+    await session.populate("participants", "fullName idNumber email role");
 
     res.json({
       success: true,
-      message: 'Successfully left the session',
-      session
+      message: "Successfully left the session",
+      session,
     });
-
   } catch (error) {
-    console.error('Leave session error:', error);
+    console.error("Leave session error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: "Internal server error",
     });
   }
 };
@@ -404,14 +416,14 @@ const leaveSession = async (req, res) => {
 const getMySessionHistory = async (req, res) => {
   try {
     const sessions = await Session.find({
-      'participationHistory.user': req.userId
+      "participationHistory.user": req.userId,
     })
-    .populate('hostedBy', 'fullName idNumber email role')
-    .populate('participationHistory.user', 'fullName idNumber email role')
-    .sort({ createdAt: -1 });
+      .populate("hostedBy", "fullName idNumber email role")
+      .populate("participationHistory.user", "fullName idNumber email role")
+      .sort({ createdAt: -1 });
 
     // Format the history for each session
-    const formattedHistory = sessions.map(session => ({
+    const formattedHistory = sessions.map((session) => ({
       sessionId: session._id,
       title: session.title,
       sessionCode: session.sessionCode,
@@ -421,24 +433,160 @@ const getMySessionHistory = async (req, res) => {
       endedAt: session.endTime,
       // Get user's participation records for this session
       participations: session.participationHistory
-        .filter(record => record.user._id.toString() === req.userId)
-        .map(record => ({
+        .filter((record) => record.user._id.toString() === req.userId)
+        .map((record) => ({
           joinedAt: record.joinedAt,
           leftAt: record.leftAt,
-          role: record.role
-        }))
+          role: record.role,
+        })),
     }));
 
     res.json({
       success: true,
-      history: formattedHistory
+      history: formattedHistory,
     });
-
   } catch (error) {
-    console.error('Get session history error:', error);
+    console.error("Get session history error:", error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: "Internal server error",
+    });
+  }
+};
+
+// Raise hand in a session
+const raiseHand = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await Session.findById(sessionId);
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: "Session not found",
+      });
+    }
+
+    // Check if user is an active participant
+    const participant = session.activeParticipants.find(
+      (p) => p.userId && p.userId.toString() === req.userId
+    );
+
+    if (!participant) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not an active participant in this session",
+      });
+    }
+
+    // Update hand status
+    participant.hasRaisedHand = true;
+    participant.raisedHandAt = new Date();
+    await session.save();
+
+    // Emit hand raise event
+    const { io } = require("../server");
+    io.to(sessionId).emit("hand-raised", {
+      userId: req.userId,
+      timestamp: participant.raisedHandAt,
+    });
+
+    res.json({
+      success: true,
+      message: "Hand raised successfully",
+    });
+  } catch (error) {
+    console.error("Raise hand error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+// Lower hand in a session
+const lowerHand = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await Session.findById(sessionId);
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: "Session not found",
+      });
+    }
+
+    // Check if user is an active participant
+    const participant = session.activeParticipants.find(
+      (p) => p.userId && p.userId.toString() === req.userId
+    );
+
+    if (!participant) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not an active participant in this session",
+      });
+    }
+
+    // Update hand status
+    participant.hasRaisedHand = false;
+    participant.raisedHandAt = null;
+    await session.save();
+
+    // Emit hand lower event
+    const { io } = require("../server");
+    io.to(sessionId).emit("hand-lowered", {
+      userId: req.userId,
+    });
+
+    res.json({
+      success: true,
+      message: "Hand lowered successfully",
+    });
+  } catch (error) {
+    console.error("Lower hand error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+// Get all raised hands for a session
+const getRaisedHands = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = await Session.findById(sessionId).populate(
+      "activeParticipants.userId",
+      "fullName idNumber email role"
+    );
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: "Session not found",
+      });
+    }
+
+    // Filter participants with raised hands
+    const raisedHands = session.activeParticipants
+      .filter((p) => p.hasRaisedHand)
+      .map((p) => ({
+        user: p.userId,
+        raisedAt: p.raisedHandAt,
+      }))
+      .sort((a, b) => a.raisedAt - b.raisedAt);
+
+    res.json({
+      success: true,
+      raisedHands,
+    });
+  } catch (error) {
+    console.error("Get raised hands error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
     });
   }
 };
@@ -453,5 +601,8 @@ module.exports = {
   endSession,
   saveCodeToHistory,
   getSessionHistory,
-  getMySessionHistory
+  getMySessionHistory,
+  raiseHand,
+  lowerHand,
+  getRaisedHands,
 };

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { authAPI } from '../utils/api';
+import React, { useState, useEffect } from 'react';
+import { authAPI, tokenManager } from '../utils/api';
 
 const LoginForm = ({ onLoginSuccess }) => {
   const [formData, setFormData] = useState({
@@ -10,6 +10,12 @@ const LoginForm = ({ onLoginSuccess }) => {
   const [message, setMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
   const [user, setUser] = useState(null);
+
+  // Debug: Check if we have a token on component mount
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    console.log('Current token:', token);
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
@@ -25,6 +31,7 @@ const LoginForm = ({ onLoginSuccess }) => {
 
     try {
       const data = await authAPI.login(formData);
+      console.log('Login response:', data); // Debug log
 
       if (data.success) {
         setIsSuccess(true);
@@ -34,7 +41,7 @@ const LoginForm = ({ onLoginSuccess }) => {
         
         // Call the success callback to update parent component
         if (onLoginSuccess) {
-          onLoginSuccess(data.user, data.token);
+          onLoginSuccess(data.user);
         }
       } else {
         setIsSuccess(false);
@@ -42,6 +49,7 @@ const LoginForm = ({ onLoginSuccess }) => {
         setUser(null);
       }
     } catch (error) {
+      console.error('Login error:', error); // Debug log
       setIsSuccess(false);
       setMessage('Network error. Please make sure the backend server is running.');
       setUser(null);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import apiCall from '../utils/api';
+import SessionView from './SessionView';
 
 const AdminDashboard = ({ user, onLogout }) => {
   const [students, setStudents] = useState([]);
@@ -9,6 +10,13 @@ const AdminDashboard = ({ user, onLogout }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
+  const [activeSession, setActiveSession] = useState(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newSession, setNewSession] = useState({
+    title: '',
+    description: '',
+    maxParticipants: 500
+  });
 
   const fetchData = async () => {
     try {
@@ -40,6 +48,32 @@ const AdminDashboard = ({ user, onLogout }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleJoinSession = async (sessionCode) => {
+    try {
+      const response = await apiCall('/api/sessions/join', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ sessionCode })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setActiveSession(data.session);
+      } else {
+        setMessage(data.message || 'Failed to join session');
+      }
+    } catch (error) {
+      setMessage('Network error. Please try again.');
+    }
+  };
+
+  const handleLeaveSession = () => {
+    setActiveSession(null);
+    fetchData();
   };
 
   useEffect(() => {
@@ -90,6 +124,44 @@ const AdminDashboard = ({ user, onLogout }) => {
     }
   };
 
+  const handleCreateSession = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+
+    try {
+      const response = await apiCall('/api/sessions/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newSession)
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setActiveSession(data.session);
+        setNewSession({ title: '', description: '', maxParticipants: 500 });
+        setShowCreateForm(false);
+        fetchData(); // Refresh all data including sessions
+      } else {
+        setMessage(data.message || 'Failed to create session');
+      }
+    } catch (error) {
+      setMessage('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (activeSession) {
+    return <SessionView 
+      session={activeSession} 
+      user={user} 
+      onLeave={handleLeaveSession}
+    />;
+  }
+
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
       <div style={{ marginBottom: '30px' }}>
@@ -107,6 +179,91 @@ const AdminDashboard = ({ user, onLogout }) => {
         <h3>Welcome, {user.fullName}!</h3>
         <p><strong>ID:</strong> {user.idNumber} | <strong>Email:</strong> {user.email} | <strong>Role:</strong> {user.role.toUpperCase()}</p>
       </div>
+
+      {/* Action Buttons */}
+      <div style={{ 
+        marginBottom: '20px',
+        display: 'flex',
+        gap: '10px'
+      }}>
+        <button
+          onClick={() => setShowCreateForm(!showCreateForm)}
+          style={{
+            padding: '12px 24px',
+            backgroundColor: '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '16px',
+            cursor: 'pointer'
+          }}
+        >
+          {showCreateForm ? 'Cancel' : 'Create New Session'}
+        </button>
+      </div>
+
+      {/* Create Session Form */}
+      {showCreateForm && (
+        <div style={{ 
+          backgroundColor: '#f8f9fa', 
+          padding: '20px', 
+          borderRadius: '8px', 
+          marginBottom: '20px',
+          border: '1px solid #dc3545'
+        }}>
+          <h3>Create New Session</h3>
+          <form onSubmit={handleCreateSession} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Session Title:</label>
+              <input
+                type="text"
+                value={newSession.title}
+                onChange={(e) => setNewSession({ ...newSession, title: e.target.value })}
+                required
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                placeholder="Enter session title"
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Description (optional):</label>
+              <textarea
+                value={newSession.description}
+                onChange={(e) => setNewSession({ ...newSession, description: e.target.value })}
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', minHeight: '80px' }}
+                placeholder="Enter session description"
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Max Participants:</label>
+              <input
+                type="number"
+                value={newSession.maxParticipants}
+                onChange={(e) => setNewSession({ ...newSession, maxParticipants: parseInt(e.target.value) })}
+                min="1"
+                max="500"
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+              />
+              <small style={{ color: '#666', marginTop: '4px', display: 'block' }}>
+                As an admin, you can create sessions with up to 500 participants
+              </small>
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: loading ? '#ccc' : '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: loading ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {loading ? 'Creating...' : 'Create Session'}
+            </button>
+          </form>
+        </div>
+      )}
 
       {/* Message */}
       {message && (
@@ -349,37 +506,89 @@ const AdminDashboard = ({ user, onLogout }) => {
           {sessions.length === 0 ? (
             <p style={{ color: '#666', fontStyle: 'italic' }}>No sessions found.</p>
           ) : (
-            <div style={{ display: 'grid', gap: '15px' }}>
-              {sessions.map((session) => (
-                <div
-                  key={session._id}
-                  style={{
-                    border: '1px solid #ddd',
-                    borderRadius: '8px',
-                    padding: '15px',
-                    backgroundColor: session.isActive ? '#fff' : '#f8f9fa'
-                  }}
-                >
-                  <h4 style={{ margin: '0 0 10px 0', color: session.isActive ? '#000' : '#666' }}>
-                    {session.title}
-                    {!session.isActive && <span style={{ color: '#dc3545', marginLeft: '10px' }}>(Ended)</span>}
-                  </h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
-                    <p style={{ margin: '0', color: '#666' }}>
-                      <strong>Host:</strong> {session.hostedBy?.fullName} ({session.hostedBy?.idNumber})
-                    </p>
-                    <p style={{ margin: '0', color: '#666' }}>
-                      <strong>Code:</strong> {session.sessionCode}
-                    </p>
-                    <p style={{ margin: '0', color: '#666' }}>
-                      <strong>Participants:</strong> {session.participants.length} / {session.maxParticipants}
-                    </p>
-                    <p style={{ margin: '0', color: '#666' }}>
-                      <strong>Created:</strong> {new Date(session.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'white' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f8f9fa' }}>
+                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #ddd' }}>Title</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #ddd' }}>Host</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #ddd' }}>Session Code</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #ddd' }}>Participants</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #ddd' }}>Status</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #ddd' }}>Created At</th>
+                    <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #ddd' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sessions.map((session) => (
+                    <tr key={session._id} style={{ backgroundColor: session.isActive ? '#fff' : '#f8f9fa' }}>
+                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>
+                        {session.title}
+                        {session.description && (
+                          <p style={{ margin: '5px 0 0 0', fontSize: '12px', color: '#666' }}>
+                            {session.description}
+                          </p>
+                        )}
+                      </td>
+                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>
+                        {session.hostedBy?.fullName}<br />
+                        <span style={{ fontSize: '12px', color: '#666' }}>({session.hostedBy?.idNumber})</span>
+                      </td>
+                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>{session.sessionCode}</td>
+                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>
+                        {session.participants.length} / {session.maxParticipants}
+                        <details style={{ marginTop: '5px' }}>
+                          <summary style={{ cursor: 'pointer', color: '#007bff', fontSize: '12px' }}>
+                            View List
+                          </summary>
+                          <div style={{ marginTop: '5px', fontSize: '12px' }}>
+                            {session.participants.map((participant) => (
+                              <div key={participant._id} style={{ margin: '3px 0', color: '#666' }}>
+                                • {participant.fullName} ({participant.idNumber})
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      </td>
+                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>
+                        <span style={{
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          backgroundColor: session.isActive ? '#d4edda' : '#f8d7da',
+                          color: session.isActive ? '#155724' : '#721c24',
+                          fontSize: '12px'
+                        }}>
+                          {session.isActive ? 'Active' : 'Ended'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>
+                        {new Date(session.createdAt).toLocaleString()}
+                      </td>
+                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>
+                        {session.isActive && (
+                          <>
+                            <button
+                              onClick={() => handleJoinSession(session.sessionCode)}
+                              style={{
+                                padding: '6px 12px',
+                                backgroundColor: '#28a745',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                                marginRight: '5px'
+                              }}
+                            >
+                              Join Session
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

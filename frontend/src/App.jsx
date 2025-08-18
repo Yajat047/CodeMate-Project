@@ -19,18 +19,28 @@ function App() {
 
   const checkAuthStatus = async () => {
     try {
+      // Check for token using tokenManager
       if (!tokenManager.hasToken()) {
+        console.log('No token found during auth check');
         setLoading(false);
         return;
       }
       
       const data = await authAPI.getCurrentUser();
-      if (data.success) {
+      console.log('Auth check response:', data); // Debug log
+      
+      if (data.success && data.user) {
         setUser(data.user);
+        console.log('User authenticated successfully');
+      } else {
+        console.log('Auth check failed:', data.message);
+        tokenManager.removeToken();
+        setUser(null);
       }
     } catch (error) {
       console.error('Auth check error:', error);
       tokenManager.removeToken();
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -47,7 +57,10 @@ function App() {
   };
 
   const handleLoginSuccess = (userData) => {
-    setUser(userData)
+    console.log('Login success - setting user:', userData); // Debug log
+    setUser(userData);
+    // Verify authentication immediately after login
+    checkAuthStatus();
   }
 
   if (loading) {

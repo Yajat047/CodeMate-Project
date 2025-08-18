@@ -6,9 +6,16 @@ const authMiddleware = async (req, res, next) => {
   try {
     // Get token from Authorization header
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.startsWith('Bearer ') 
-      ? authHeader.substring(7) 
-      : null;
+    console.log('Auth header:', authHeader); // Debug log
+    
+    let token = null;
+    if (authHeader) {
+      // Handle case where Bearer might be duplicated
+      token = authHeader.replace(/^Bearer\s+Bearer\s+/, 'Bearer ');
+      token = token.startsWith('Bearer ') ? token.substring(7) : token;
+    }
+      
+    console.log('Extracted token:', token ? 'present' : 'null'); // Debug log
 
     if (!token) {
       return res.status(401).json({
@@ -18,14 +25,27 @@ const authMiddleware = async (req, res, next) => {
     }
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    } catch (err) {
+      if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          success: false,
+          message: 'Token expired',
+          expired: true
+        });
+      }
+      throw err;
+    }
     
     // Check if user exists and is active
     const user = await User.findById(decoded.userId);
     if (!user || !user.isActive) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid token or user not found'
+        message: 'User not found or inactive',
+        userNotFound: true
       });
     }
 

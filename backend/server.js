@@ -1,6 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
@@ -35,8 +37,101 @@ mongoose.connect(process.env.CONNECTION_URI || process.env.MONGODB_URI || 'mongo
 .catch((error) => console.error('MongoDB connection error:', error));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: ['http://localhost:5173', 'http://localhost:3000', process.env.FRONTEND_URL],
+    methods: ['GET', 'POST']
+  }
+});
+
+// Socket.IO event handlers
+io.on('connection', (socket) => {
+  console.log('A user connected:', socket.id);
+
+  // Join a session room
+  socket.on('join-session', async ({ sessionId, userId }) => {
+    socket.join(sessionId);
+    socket.sessionId = sessionId; // Store sessionId for disconnect handling
+    
+    try {
+      const Session = require('./models/Session');
+      const User = require('./models/User');
+      
+      const session = await Session.findById(sessionId)
+        .populate('participants', 'fullName idNumber email role')
+        .populate('hostedBy', 'fullName idNumber email role');
+
+      if (session) {
+        // Notify all clients in the session about the new participant
+        io.to(sessionId).emit('session-updated', {
+          participants: session.participants,
+          host: session.hostedBy
+        });
+      }
+    } catch (error) {
+      console.error('Error handling join-session:', error);
+    }
+  });
+
+  // Leave a session room
+  socket.on('leave-session', async ({ sessionId, userId }) => {
+    socket.leave(sessionId);
+    
+    try {
+      const Session = require('./models/Session');
+      const session = await Session.findById(sessionId)
+        .populate('participants', 'fullName idNumber email role')
+        .populate('hostedBy', 'fullName idNumber email role');
+
+      if (session) {
+        // Notify all clients in the session about the participant leaving
+        io.to(sessionId).emit('session-updated', {
+          participants: session.participants,
+          host: session.hostedBy
+        });
+      }
+    } catch (error) {
+      console.error('Error handling leave-session:', error);
+    }
+  });
+
+  // Handle code updates
+  socket.on('code-update', ({ sessionId, code, userId }) => {
+    socket.to(sessionId).emit('code-updated', { code, userId });
+  });
+
+  // Handle session end
+  socket.on('end-session', (sessionId) => {
+    io.to(sessionId).emit('session-ended');
+  });
+
+  socket.on('disconnect', async () => {
+    console.log('User disconnected:', socket.id);
+    
+    // If user was in a session, notify others
+    if (socket.sessionId) {
+      try {
+        const Session = require('./models/Session');
+        const session = await Session.findById(socket.sessionId)
+          .populate('participants', 'fullName idNumber email role')
+          .populate('hostedBy', 'fullName idNumber email role');
+
+        if (session) {
+          io.to(socket.sessionId).emit('session-updated', {
+            participants: session.participants,
+            host: session.hostedBy
+          });
+        }
+      } catch (error) {
+        console.error('Error handling disconnect:', error);
+      }
+    }
+  });
+});
+
+httpServer.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-module.exports = app;
+module.exports = { app, io };
